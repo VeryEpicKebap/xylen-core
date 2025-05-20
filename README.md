@@ -1,7 +1,7 @@
 ## XylenOS
 XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist project made by 2 people.
 
-# Screenshots ![enter image description here](https://cdn.discordapp.com/attachments/1342859644560740504/1373739182232436817/Baslksz97_20250518220825.png?ex=682b81cf&is=682a304f&hm=4352daa68aff0def36a5d5bc6232281c0bdc35e3b8544f1ad3f508d02f4770fc&)
+# Screenshots ![enter image description here](https://cdn.discordapp.com/attachments/1371783823297089537/1374042859896049685/Screenshot_2025-05-19-18-15-08-493_com.limbo.emu.main-edit.jpg?ex=682dee22&is=682c9ca2&hm=b5935845e071140c9cea54f8c91c39e5592b3c7d5da3d8521d394a726f018f06&)
 
 
 ## Features
