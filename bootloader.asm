@@ -1,64 +1,140 @@
-; Minimal bootloader that prints a message and loads a kernel from disk
-; Assumes the kernel is immediately after the boot sector (i.e., on the 2nd sector)
-; The kernel is loaded at 0x1000 and execution jumps there
-
 [org 0x7c00]
+KERNEL_OFFSET EQU 0x1000
 
-KERNEL_OFFSET equ 0x1000
+BOOT_DRIVE db 0x0
 
-start:
-    ; Store the boot drive number (set by BIOS in DL)
-    mov [bootdrv], dl
+MSG_REAL_MODE: db "started in 16-bit real mode", 0xa, 0xd, 0x0
+MSG_LOAD_KERNEL: db "loading kernel into memory...", 0x0
+MSG_PROT_MODE: db "successfully landed in 32-bit protected mode.", 0x0
 
-    ; Print message
-    mov si, msg
-.print:
-    lodsb
-    cmp al, 0
-    je .done_print
-    mov ah, 0x0E
-    int 0x10
-    jmp .print
-.done_print:
+mov [BOOT_DRIVE], dl
+mov bp, 0x9000
+mov sp, bp
+mov bx, MSG_REAL_MODE
+call print_string
+call load_kernel
+call switch_to_pm
+jmp $
 
-    ; Set up segment registers for loading
-    cli
-    xor ax, ax
-    mov ds, ax
-    mov es, ax
+print_string:
+  pusha
+  mov ah, 0xe
+  jmp read_character
+read_character:
+  mov al, [bx]
+  cmp al, 0
+  jne print_character
+  popa
+  ret
+print_character:
+  int 0x10
+  add bx, 1
+  jmp read_character
 
-    ; Set up destination for kernel
-    mov bx, KERNEL_OFFSET
-
-    ; Read 1 sector (the next sector; sector 2) from disk into 0x1000:0000
-    mov ah, 0x02        ; BIOS read sector function
-    mov al, 1           ; Number of sectors to read
-    mov ch, 0           ; Cylinder 0
-    mov dh, 0           ; Head 0
-    mov cl, 2           ; Sector 2 (first sector after bootloader)
-    mov dl, [bootdrv]   ; Boot drive
-    int 0x13            ; BIOS disk interrupt
-
-    jc disk_error       ; If carry flag set, there was an error
-
-    ; Jump to loaded kernel (far jump: new CS:IP)
-    jmp 0x0000:KERNEL_OFFSET
-
+disk_load:
+  pusha
+  push dx
+  mov ah, 0x02
+  mov al, dh
+  mov ch, 0
+  mov dh, 0
+  mov cl, 2
+  int 0x13
+  pop dx
+  jc disk_error
+  cmp al, dh
+  jne disk_error
+  popa
+  ret
 disk_error:
-    mov si, err_msg
-.print_err:
-    lodsb
-    cmp al, 0
-    je .hang
-    mov ah, 0x0E
-    int 0x10
-    jmp .print_err
-.hang:
-    jmp $
+  mov bx, ERROR_MSG
+  call print_string
+  jmp $
+ERROR_MSG: db 'disk error', 0
 
-msg db "Booting kernel...", 0
-err_msg db "Disk read error!", 0
-bootdrv db 0
+gdt_start:
+gdt_null:
+  dd 0x0
+  dd 0x0
+gdt_code:
+  dw 0xffff
+  dw 0x0
+  db 0x0
+  db 10011010b
+  db 11001111b
+  db 0x0
+gdt_data:
+  dw 0xffff
+  dw 0x0
+  db 0x0
+  db 10010010b
+  db 11001111b
+  db 0x0
 
-times 510-($-$$) db 0
-dw 0xAA55
+gdt_end:
+
+gdt_descriptor:
+  dw gdt_end - gdt_start - 1
+  dd gdt_start
+
+CODE_SEG EQU gdt_code - gdt_start
+DATA_SEG EQU gdt_data - gdt_start
+
+[bits 16]
+switch_to_pm:
+  cli
+  lgdt [gdt_descriptor]
+  mov eax, cr0
+  or eax, 0x1
+  mov cr0, eax
+  jmp CODE_SEG:init_pm
+
+[bits 32]
+init_pm:
+  mov ax, DATA_SEG
+  mov ds, ax
+  mov ss, ax
+  mov es, ax
+  mov fs, ax
+  mov gs, ax
+  mov ebp, 0x90000
+  mov esp, ebp
+  call BEGIN_PM
+
+VIDEO_MEMORY equ 0xb8000
+WHITE_ON_BLACK equ 0x0f
+print_string_pm:
+  pusha
+  mov edx, VIDEO_MEMORY
+print_string_pm_loop:
+  mov al, [ebx]
+  mov ah, WHITE_ON_BLACK
+  cmp al, 0
+  je print_string_pm_end
+  mov [edx], ax
+  add ebx, 1
+  add edx, 2
+  jmp print_string_pm_loop
+print_string_pm_end:
+  popa
+  ret
+
+[bits 16]
+load_kernel:
+  mov bx, MSG_LOAD_KERNEL
+  call print_string
+  mov bx, KERNEL_OFFSET
+  mov dh, 1
+  mov dl, [BOOT_DRIVE]
+  call disk_load
+  ret
+
+[bits 32]
+BEGIN_PM:
+  mov ebx, MSG_PROT_MODE
+  call print_string_pm
+  call KERNEL_OFFSET
+  jmp $
+
+times 510-($-$$) db 0x0
+dw 0xaa55
