@@ -14,7 +14,7 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
 ## To-Do list
 
  - [x] Fixed Bootloader
- - [ ] Get Kernel to load into memory
+ - [x] Get Kernel to load into memory
  - [ ] Filesystem
  - [ ] Text-based Userland
  
