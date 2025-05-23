@@ -10,35 +10,15 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
 
  - Boots (finally :sob:🙏)
  - Working Bootloader 🤑
- - 32-Bit 😎
- - 64-Bit (Half Baked) :pensive:
+ - 64-Bit 😎
+ - Text-based shell 🤩
 
 ## To-Do list
 
  - [x] Fixed Bootloader
  - [x] Get Kernel to load into memory
- - [ ] Text-based Userland
+ - [x] Text-based Userland
  - [ ] Filesystem
  
 ## Build Guide
-1. Make sure to install `x86_64-elf-gcc` and `x86_64-elf-binutils`
-2. Compile the bootloader `nasm bootloader.asm -f bin -o bootloader.bin`
-3. Compile the Kernel Loader `nasm enter_kernel.asm -f elf -o enter_kernel.o`
-4. Compile the Kernel `x86_64-elf-gcc -m32 -ffreestanding -c "kernel.c" -o "kernel.o"`
-5. Combine the Kernel with the loader `x86_64-elf-ld -melf_i386 -o kernel.bin -Ttext 0x1000 --oformat binary enter_kernel.o *.o`
-6. Combine all the code `cat bootloader.bin kernel.bin > os-image`
-
-Finally try the image with `qemu-system-x86_64 -drive file=os-image,if=floppy,index=0,media=disk,format=raw -net none`
-
-or here is a simple script 
-
-    #!/bin/bash
-    rm -f *.o *.bin os-image
-    nasm bootloader.asm -f bin -o bootloader.bin
-    nasm enter_kernel.asm -f elf -o enter_kernel.o
-    for file in *.c; do
-        x86_64-elf-gcc -m32 -ffreestanding -c "$file" -o "${file%.c}.o"
-    done 
-    x86_64-elf-ld -melf_i386 -o kernel.bin -Ttext 0x1000 --oformat binary enter_kernel.o *.o
-    cat bootloader.bin kernel.bin > os-image
-    qemu-system-x86_64 -drive file=os-image,if=floppy,index=0,media=disk,format=raw -net none
+Use the build.sh file and make sure you have installed x86_64-elf-gcc and x86_64-elf-binutils installed
