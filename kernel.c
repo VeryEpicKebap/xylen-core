@@ -1,8 +1,9 @@
-/* kernel.c – Minimal 32-bit kernel in C */
+/* XylenOS Kernel. Comments by VeryEpicKebap.
+
 
 #include <stdint.h>
 
-/* I/O port access (inline assembly) */
+/* I/O port access */
 static inline uint8_t inb(uint16_t port) {
     uint8_t ret;
     asm volatile ("inb %%dx, %%al" : "=a"(ret) : "d"(port));
@@ -12,12 +13,12 @@ static inline void outb(uint16_t port, uint8_t val) {
     asm volatile ("outb %%al, %%dx" :: "a"(val), "d"(port));
 }
 
-/* VGA text-mode buffer at physical address 0xB8000 */
+/* VGA text-mode buffer */
 volatile uint16_t * const VGA = (uint16_t*)0xB8000;
 static int cursor_x = 0, cursor_y = 0;
 static const uint8_t VGA_COLOR = 0x0F;  // White on black
 
-/* Advance to next line, scrolling if needed */
+/* Advance to next line and scroll if needed*/
 static void newline() {
     cursor_x = 0;
     cursor_y++;
@@ -97,7 +98,7 @@ static int strcmp(const char *s1, const char *s2) {
     return (uint8_t)*s1 - (uint8_t)*s2;
 }
 
-/* Reboot the system via PS/2 keyboard controller (write 0xFE to port 0x64) */
+/* Reboot the system via PS/2 keyboard controller */
 static void do_reboot() {
     /* Wait until the input buffer is empty (bit 1 of status) */
     while (inb(0x64) & 0x02) { }
@@ -111,7 +112,7 @@ void kernel_main() {
     prints("Welcome to XylenOS v0.1\n");
     prints("Type 'help' for commands.\n");
     while (1) {
-        prints("> ");               // prompt
+        prints("$ ");               // prompt
         char line[80];
         int len = 0;
         // Read a line of input
@@ -139,7 +140,7 @@ void kernel_main() {
         }
         // Execute commands
         if (strcmp(line, "version") == 0) {
-            prints("MyOS version 0.1\n");
+            prints("XylenOS\n\nVersion 0.1 Pre-alpha\nV0.1-k_12.01-b_r2");
         } else if (strcmp(line, "help") == 0) {
             prints("Commands: version, clear, help, reboot\n");
         } else if (strcmp(line, "clear") == 0) {
