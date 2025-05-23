@@ -17,8 +17,8 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
 
  - [x] Fixed Bootloader
  - [x] Get Kernel to load into memory
- - [ ] Filesystem
  - [ ] Text-based Userland
+ - [ ] Filesystem
  
 ## Build Guide
 1. Make sure to install `x86_64-elf-gcc` and `x86_64-elf-binutils`
@@ -41,5 +41,4 @@ or here is a simple script
     done 
     x86_64-elf-ld -melf_i386 -o kernel.bin -Ttext 0x1000 --oformat binary enter_kernel.o *.o
     cat bootloader.bin kernel.bin > os-image
-    qemu-system-x86_64 -drive file=os-image,format=raw -net none 
-
+    qemu-system-x86_64 -drive file=os-image,if=floppy,index=0,media=disk,format=raw -net none
