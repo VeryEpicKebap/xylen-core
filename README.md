@@ -8,7 +8,7 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
 
 ## Features
 
- - 32-bit
+ - 32-bit with support for 64-bit hardware
  - Simple terminal shell
 
 ## To-Do list
