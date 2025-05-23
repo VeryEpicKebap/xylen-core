@@ -1,9 +1,16 @@
-;
-; A simple routine for entering the kernel at the function `main`.
-;
+; enter_kernel.asm
+[bits 32]
+[extern kernel_main]
 
-[bits 32]     ; We're in protected mode, so use 32-bit instructios.
-[extern main] ; Expect `main` to be defined in an assembly file assembled alongside this one.
+global _start
 
-jmp main      ; Enter the main function.
-jmp $         ; When control returns from the kernel, hang.
+_start:
+    ; Set up the stack pointer
+    mov esp, 0x90000
+
+    ; Call the C kernel's main function
+    call kernel_main
+
+.hang:
+    hlt
+    jmp .hang
