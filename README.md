@@ -8,10 +8,8 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
 
 ## Features
 
- - Boots (finally :sob:🙏)
- - Working Bootloader 🤑
- - 64-Bit 😎
- - Text-based shell 🤩
+ - 32-bit
+ - Simple terminal shell
 
 ## To-Do list
 
