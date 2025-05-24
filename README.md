@@ -13,15 +13,23 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
  - Simple Text-Based Userland aka Shell
  - Simple Commands (more soon)
 
-## To-Do list
+## To-Do list (Roadmap of May/June)
 
  - [x] Fixed Bootloader
  - [x] Get Kernel to load into memory
- - [x] Text-based Userland
- - [ ] Filesystem
+ - [x] Text-based Userland aka Shell
+ - [x] Live Clock
+ - [x] Filesystem
+ - [ ] Extended Filesystem
+ - [ ] Executable Loader (.elf)
+ - [ ] Text-User Interface
+ - [ ] Simplification of Installation onto Hard Drive
+ - [ ] Mount Tool
  - 2nd Dev Phase
+ - [ ] Beeper Application
  - [ ] Working NAT
  - [ ] Brainfuck Interpreter
+ - [ ] Package Manager
  
 ## Build Guide
 Make sure you have `x86_64-elf-gcc` and `x86_64-elf-binutils`  installed.
