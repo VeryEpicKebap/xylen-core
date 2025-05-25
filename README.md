@@ -11,7 +11,8 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
 
  - 32-bit with support for 64-bit hardware
  - Simple Text-Based Userland aka Shell
- - Simple Commands (more soon)
+ - Simple Commands like touchfile, time, ls, cat
+ - Fully fledged Filesystem called ZadFS™ 😎
 
 ## To-Do list (Roadmap of May/June)
 
@@ -26,6 +27,7 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
  - [ ] Simplification of Installation onto Hard Drive
  - [ ] Mount Tool
  - 2nd Dev Phase
+ - [ ] Text Editor
  - [ ] Beeper Application
  - [ ] Working NAT
  - [ ] Brainfuck Interpreter
