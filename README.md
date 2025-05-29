@@ -23,9 +23,9 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
  - [x] Filesystem
  - [X] QoL Improvements 
  - [X] FS Commands
- - [ ] Text Editor
- - [ ] Extended Filesystem
- - [ ] Executable Loader (.elf)
+ - [ ] Text Editor (WIP)
+ - [X] Extended Filesystem
+ - [ ] Executable Loader (.elf) 
  - [ ] Text-User Interface
  - [ ] Mount Tool
  - 2nd Dev Phase
