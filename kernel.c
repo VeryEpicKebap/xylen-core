@@ -8,7 +8,6 @@ static const char kbdus[128] = {
     'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-
 static const char kbdus_shift[128] = {
     0, 27, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b', '\t',
     'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n', 0,
@@ -85,15 +84,10 @@ static char get_key() {
     while (1) {
         if (inb(0x64) & 0x01) {
             uint8_t sc = inb(0x60);
-            // Left Shift Pressed
             if (sc == 0x2A) { shift = 1; continue; }
-            // Right Shift Pressed
             if (sc == 0x36) { shift = 1; continue; }
-            // Left Shift Released
             if (sc == 0xAA) { shift = 0; continue; }
-            // Right Shift Released
             if (sc == 0xB6) { shift = 0; continue; }
-            // Ignore release codes (high bit set, except shift)
             if (sc & 0x80) continue;
             char c = shift ? kbdus_shift[sc] : kbdus[sc];
             if (c) return c;
@@ -152,14 +146,16 @@ static void print_time() {
 }
 
 // --- ZadFS Persistent Filesystem ---
-#define ZADFS_MAX_FILES   16
-#define ZADFS_MAX_FILENAME  16
-#define ZADFS_DATA_SIZE   1024
-#define ZADFS_MAGIC       0x5ADF55
+#define ZADFS_MAX_FILES      128
+#define ZADFS_MAX_FILENAME   128
+#define ZADFS_DATA_SIZE      4096
+#define ZADFS_MAGIC          0x5ADF55
+#define ZADFS_FILE_ENTRY_SIZE (ZADFS_MAX_FILENAME + sizeof(int)*2 + 1)
 
 typedef struct {
     char name[ZADFS_MAX_FILENAME];
-    int size, data_offset, used;
+    int size, data_offset;
+    uint8_t used;
 } zadfs_file_t;
 
 typedef struct {
@@ -219,7 +215,7 @@ static int ata_read_sector(uint32_t lba, uint8_t* buf) {
     return 1;
 }
 
-// --- ZadFS Functions ---
+// --- ZadFS Functions (fixed for large tables) ---
 static void zadfs_format() {
     zadfs.magic = ZADFS_MAGIC;
     zadfs.num_files = 0;
@@ -239,7 +235,7 @@ static void zadfs_ls() {
     for (int i = 0; i < ZADFS_MAX_FILES; i++) {
         if (zadfs.files[i].used) {
             prints("  "); prints(zadfs.files[i].name); prints(" (");
-            char sz[8]; int n = zadfs.files[i].size, p = 0;
+            char sz[12]; int n = zadfs.files[i].size, p = 0;
             if (n == 0) sz[p++] = '0';
             else {
                 int t = n, d = 1; while (t >= 10) { t /= 10; d *= 10; }
@@ -250,47 +246,91 @@ static void zadfs_ls() {
     }
     if (!found) prints("  (none)\n");
 }
+
 static void zadfs_save_to_hdd() {
+    int files_bytes = ZADFS_MAX_FILES * ZADFS_FILE_ENTRY_SIZE;
+    int meta_bytes = 8 + files_bytes; // 8 bytes for magic, num_files, next_data_offset, plus file table
+    int meta_sectors = (meta_bytes + 511) / 512;
+
     uint8_t sector[512];
+    int offset = 0;
     for (int i = 0; i < 512; i++) sector[i] = 0;
     *((int*)sector) = zadfs.magic;
     sector[4] = zadfs.num_files;
     sector[5] = zadfs.next_data_offset;
-    for (int i = 0; i < ZADFS_MAX_FILES; i++) {
-        int base = 8 + i * 25;
-        for (int j = 0; j < ZADFS_MAX_FILENAME; j++)
-            sector[base + j] = zadfs.files[i].name[j];
-        *((int*)(sector + base + 16)) = zadfs.files[i].size;
-        *((int*)(sector + base + 20)) = zadfs.files[i].data_offset;
-        sector[base + 24] = zadfs.files[i].used;
+    offset = 8;
+
+    int file_idx = 0;
+    int meta_sector_id = 0;
+    for (; meta_sector_id < meta_sectors; meta_sector_id++) {
+        if (meta_sector_id > 0) {
+            for (int i = 0; i < 512; i++) sector[i] = 0;
+            offset = 0;
+        }
+        while (file_idx < ZADFS_MAX_FILES && offset + ZADFS_FILE_ENTRY_SIZE <= 512) {
+            zadfs_file_t *f = &zadfs.files[file_idx];
+            for (int j = 0; j < ZADFS_MAX_FILENAME; j++)
+                sector[offset + j] = f->name[j];
+            *((int*)(sector + offset + ZADFS_MAX_FILENAME)) = f->size;
+            *((int*)(sector + offset + ZADFS_MAX_FILENAME + 4)) = f->data_offset;
+            sector[offset + ZADFS_MAX_FILENAME + 8] = f->used;
+            offset += ZADFS_FILE_ENTRY_SIZE;
+            file_idx++;
+        }
+        ata_write_sector(meta_sector_id, sector);
     }
-    ata_write_sector(0, sector);
-    for (int b = 0; b < (ZADFS_DATA_SIZE + 511) / 512; b++) {
+
+    int data_bytes = ZADFS_DATA_SIZE;
+    int data_sectors = (data_bytes + 511) / 512;
+    for (int b = 0; b < data_sectors; b++) {
         for (int i = 0; i < 512; i++)
             sector[i] = (b*512 + i < ZADFS_DATA_SIZE) ? zadfs.data[b*512 + i] : 0;
-        ata_write_sector(1 + b, sector);
+        ata_write_sector(meta_sectors + b, sector);
     }
 }
+
 static void zadfs_load_from_hdd() {
+    int files_bytes = ZADFS_MAX_FILES * ZADFS_FILE_ENTRY_SIZE;
+    int meta_bytes = 8 + files_bytes;
+    int meta_sectors = (meta_bytes + 511) / 512;
+
     uint8_t sector[512];
+    int offset = 0;
+
     ata_read_sector(0, sector);
     zadfs.magic = *((int*)sector);
     zadfs.num_files = sector[4];
     zadfs.next_data_offset = sector[5];
-    for (int i = 0; i < ZADFS_MAX_FILES; i++) {
-        int base = 8 + i * 25;
-        for (int j = 0; j < ZADFS_MAX_FILENAME; j++)
-            zadfs.files[i].name[j] = sector[base + j];
-        zadfs.files[i].size = *((int*)(sector + base + 16));
-        zadfs.files[i].data_offset = *((int*)(sector + base + 20));
-        zadfs.files[i].used = sector[base + 24];
+    offset = 8;
+
+    int file_idx = 0;
+    int meta_sector_id = 0;
+    for (; meta_sector_id < meta_sectors; meta_sector_id++) {
+        if (meta_sector_id > 0) {
+            ata_read_sector(meta_sector_id, sector);
+            offset = 0;
+        }
+        while (file_idx < ZADFS_MAX_FILES && offset + ZADFS_FILE_ENTRY_SIZE <= 512) {
+            zadfs_file_t *f = &zadfs.files[file_idx];
+            for (int j = 0; j < ZADFS_MAX_FILENAME; j++)
+                f->name[j] = sector[offset + j];
+            f->size = *((int*)(sector + offset + ZADFS_MAX_FILENAME));
+            f->data_offset = *((int*)(sector + offset + ZADFS_MAX_FILENAME + 4));
+            f->used = sector[offset + ZADFS_MAX_FILENAME + 8];
+            offset += ZADFS_FILE_ENTRY_SIZE;
+            file_idx++;
+        }
     }
-    for (int b = 0; b < (ZADFS_DATA_SIZE + 511) / 512; b++) {
-        ata_read_sector(1 + b, sector);
+
+    int data_bytes = ZADFS_DATA_SIZE;
+    int data_sectors = (data_bytes + 511) / 512;
+    for (int b = 0; b < data_sectors; b++) {
+        ata_read_sector(meta_sectors + b, sector);
         for (int i = 0; i < 512 && b*512 + i < ZADFS_DATA_SIZE; i++)
             zadfs.data[b*512 + i] = sector[i];
     }
 }
+
 static void zadfs_create(const char *name, const char *content) {
     if (zadfs.num_files >= ZADFS_MAX_FILES) { prints("No more file slots!\n"); return; }
     int len = strlen(content);
@@ -320,7 +360,7 @@ static void zadfs_cat(const char *name) {
 void kernel_main() {
     clear_screen();
     enable_cursor();
-    prints("Welcome to XylenOS v0.2\n");
+    prints("Welcome to XylenOS v0.2.5\n");
 
     int hdd_found = detect_hdd();
     zadfs.use_hdd = 0;
@@ -375,18 +415,29 @@ void kernel_main() {
 
     while (1) {
         prints("~# ");
-        char line[80]; int len = 0;
+        char line[512]; int len = 0;
         while (1) {
             char c = get_key();
             if (c == '\n') { putchar('\n'); line[len] = '\0'; break; }
-            if (c == '\b') { if (len > 0) { len--; if (cursor_x > 0) { cursor_x--; VGA_MEM[cursor_y*VGA_WIDTH + cursor_x] = ' ' | (VGA_COLOR << 8); move_cursor(); } } }
-            else if (len < (int)sizeof(line)-1) { line[len++] = c; putchar(c); }
+            if (c == '\b') {
+    if (len > 0) {
+        len--;
+        if (cursor_x > 0) {
+            cursor_x--;
+        } else if (cursor_y > 0) {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+        }
+        VGA_MEM[cursor_y*VGA_WIDTH + cursor_x] = ' ' | (VGA_COLOR << 8);
+        move_cursor();
+    }
+}            else if (len < (int)sizeof(line)-1) { line[len++] = c; putchar(c); }
         }
 
         if (strcmp(line, "version") == 0) {
-            prints("XylenOS Pre-Alpha 0.2 Official Public Build r9\n");
+            prints("XylenOS Pre-Alpha 0.2.5 Public Testing Build DEV\n");
         } else if (strcmp(line, "help") == 0) {
-            prints("Commands: version, clear, help, reboot, time, mkfs, ls, touchfile <name> <content>, cat <name>, loadfs\n");
+            prints("Commands: version, clear, help, reboot, time, format, ls, touchfile <name> <content>, cat <name>, loadfs\n");
         } else if (strcmp(line, "clear") == 0) {
             clear_screen();
         } else if (strcmp(line, "reboot") == 0) {
@@ -395,7 +446,7 @@ void kernel_main() {
             prints("Current date and time: "); print_time();
         } else if (strcmp(line, "ls") == 0) {
             zadfs_ls();
-        } else if (strcmp(line, "mkfs") == 0) {
+        } else if (strcmp(line, "format") == 0) {
             zadfs_format();
             if (zadfs.use_hdd) zadfs_save_to_hdd();
             prints("Formatted ZadFS!\n");

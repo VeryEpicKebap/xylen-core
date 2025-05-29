@@ -21,13 +21,15 @@ XylenOS (from Greek "ξυλοσ"), started as UselessOS or uOS, is a hobbyist pr
  - [x] Text-based Userland aka Shell
  - [x] Live Clock
  - [x] Filesystem
+ - [X] QoL Improvements 
+ - [X] FS Commands
+ - [ ] Text Editor
  - [ ] Extended Filesystem
  - [ ] Executable Loader (.elf)
  - [ ] Text-User Interface
- - [ ] Simplification of Installation onto Hard Drive
  - [ ] Mount Tool
  - 2nd Dev Phase
- - [ ] Text Editor
+ - [ ] Simplification of Installation onto Hard Drive
  - [ ] Beeper Application
  - [ ] Working NAT
  - [ ] Brainfuck Interpreter
